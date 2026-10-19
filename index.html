@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PhoneBuilder Pro: Resize, Move & Custom PCB Designer</title>
+    <style>
+        :root {
+            --bg: #090d16;
+            --panel: #131c31;
+            --panel-border: #1e293b;
+            --accent: #38bdf8;
+            --accent-glow: rgba(56, 189, 248, 0.15);
+            --text: #f8fafc;
+            --muted: #94a3b8;
+            --danger: #ef4444;
+            --success: #22c55e;
+            --warning: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background-color: var(--panel);
+            border-bottom: 1px solid var(--panel-border);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        header h1 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .header-nav {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .nav-tab {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--panel-border);
+            padding: 0.4rem 0.8rem;
+            border-radius: 0.4rem;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text);
+            transition: all 0.2s;
+        }
+        .nav-tab.active { background: var(--accent); color: #090d16; border-color: var(--accent); }
+
+        .badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 99px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .badge.ok { background: rgba(34, 197, 94, 0.15); color: var(--success); border: 1px solid var(--success); }
+        .badge.error { background: rgba(239, 68, 68, 0.15); color: var(--danger); border: 1px solid var(--danger); }
+        .badge.warn { background: rgba(245, 158, 11, 0.15); color: var(--warning); border: 1px solid var(--warning); }
+
+        .app-layout {
+            display: grid;
+            grid-template-columns: 280px 1fr 340px;
+            gap: 1.5rem;
+            padding: 1.5rem;
+            max-width: 1600px;
+            margin: 0 auto;
+            flex: 1;
+            width: 100%;
+        }
+
+        @media (max-width: 1200px) {
+            .app-layout { grid-template-columns: 1fr; }
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
+            border-radius: 1rem;
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            max-height: calc(100vh - 100px);
+            overflow-y: auto;
+        }
+
+        h2 {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .parts-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .part-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--panel-border);
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            cursor: grab;
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+            transition: all 0.2s ease;
+        }
+        .part-card:hover { border-color: var(--accent); background: var(--accent-glow); }
+        .part-card .title { font-weight: 600; font-size: 0.85rem; }
+        .part-card .meta { font-size: 0.7rem; color: var(--muted); display: flex; justify-content: space-between; }
+
+        .workspace {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 0.75rem;
+            width: 100%;
+            justify-content: center;
+            align-items: center;
+        }
+
+        button {
+            background: var(--accent);
+            color: #090d16;
+            border: none;
+            padding: 0.5rem 1.2rem;
+            font-weight: 600;
+            font-size: 0.85rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        button:hover { opacity: 0.9; }
+        button.secondary { background: var(--panel-border); color: var(--text); }
+        button:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        .tool-btn {
+            background: #334155;
+            color: var(--text);
+            border: 1px solid var(--panel-border);
+        }
+        .tool-btn.active {
+            background: var(--warning);
+            color: #090d16;
+            border-color: var(--warning);
+        }
+
+        .phone-chassis {
+            width: 320px;
+            height: 580px;
+            background: #111827;
+            border: 8px solid #334155;
+            border-radius: 36px;
+            position: relative;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .phone-board {
+            position: absolute;
+            inset: 8px;
+            background: #090d16;
+            border-radius: 26px;
+            border: 2px dashed rgba(255, 255, 255, 0.08);
+            overflow: hidden;
+        }
+        .phone-board.drag-over { border-color: var(--accent); background: rgba(56, 189, 248, 0.03); }
+
+        .placed-part {
+            position: absolute;
+            border-radius: 6px;
+            padding: 0.3rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            font-size: 0.7rem;
+            cursor: move;
+            user-select: none;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255,255,255,0.2);
+            overflow: hidden;
+        }
+        .placed-part.selected { border-color: #fff; box-shadow: 0 0 0 2px var(--accent); }
+        .placed-part .delete-btn {
+            position: absolute;
+            top: 2px;
+            right: 4px;
+            background: rgba(0,0,0,0.6);
+            border: none;
+            color: #fff;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            font-size: 0.65rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+        .placed-part span { z-index: 2; text-shadow: 0 1px 2px rgba(0,0,0,0.8); font-weight: 600; }
+
+        /* Screw Points */
+        .screw-point {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #64748b;
+            border: 2px solid #cbd5e1;
+            border-radius: 50%;
+            z-index: 15;
+            cursor: pointer;
+            transform: translate(-50%, -50%);
+        }
+        .screw-point.unscrewed { background: var(--danger); }
+        .screw-point.screwed { background: var(--success); }
+
+        /* Inspector Box */
+        .inspector-box {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--panel-border);
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            font-size: 0.75rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .inspector-box label { font-size: 0.7rem; color: var(--muted); }
+        .inspector-box input {
+            background: #090d16;
+            border: 1px solid var(--panel-border);
+            color: var(--text);
+            padding: 0.3rem 0.5rem;
+            border-radius: 0.3rem;
+            width: 100%;
+            font-size: 0.75rem;
+        }
+
+        /* PCB Creator View */
+        .pcb-canvas-container {
+            width: 100%;
+            height: 400px;
+            background: #064e3b;
+            border: 2px solid #059669;
+            border-radius: 0.5rem;
+            position: relative;
+            overflow: hidden;
+            cursor: crosshair;
+        }
+        .pcb-trace {
+            position: absolute;
+            background: #fbbf24;
+            height: 4px;
+            transform-origin: left center;
+        }
+
+        /* Part Textures */
+        .type-motherboard, .type-custompcb { background: linear-gradient(135deg, #064e3b, #022c22); border-color: #059669; }
+        .type-cpu { background: linear-gradient(135deg, #1e293b, #0f172a); border-color: #475569; }
+        .type-battery { background: linear-gradient(135deg, #b45309, #78350f); border-color: #d97706; }
+        .type-screen { background: linear-gradient(135deg, #1d4ed8, #1e40af); border-color: #3b82f6; }
+        .type-modem5g { background: linear-gradient(135deg, #581c87, #3b0764); border-color: #9333ea; }
+        .type-vaporchamber { background: linear-gradient(135deg, #c2410c, #9a3412); border-color: #ea580c; }
+        .type-coil { background: linear-gradient(135deg, #4b5563, #374151); border-color: #9ca3af; }
+
+        /* OS Overlay */
+        .os-screen {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, #0f172a, #1e1b4b);
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            padding: 1rem;
+            display: none;
+        }
+        .os-header { display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--muted); margin-bottom: 1rem; }
+        .os-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; flex: 1; }
+        .app-icon {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            cursor: pointer;
+            padding: 0.5rem;
+            text-align: center;
+        }
+        .app-icon:hover { background: rgba(255, 255, 255, 0.12); }
+        .app-icon span { font-size: 0.75rem; font-weight: 500; }
+
+        .os-app-view {
+            position: absolute;
+            inset: 0;
+            background: #090d16;
+            z-index: 60;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            display: none;
+        }
+        .app-nav { display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; border-bottom: 1px solid var(--panel-border); padding-bottom: 0.5rem; }
+        .app-body { flex: 1; display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.75rem; overflow-y: auto; }
+
+        /* Heatmap Panel */
+        .heatmap-container {
+            position: relative;
+            width: 100%;
+            height: 280px;
+            background: #000;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            border: 1px solid var(--panel-border);
+        }
+        canvas { width: 100%; height: 100%; display: block; }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+        }
+        .metric-card {
+            background: rgba(255, 255, 255, 0.02);
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            border: 1px solid var(--panel-border);
+        }
+        .metric-card label { font-size: 0.65rem; color: var(--muted); display: block; text-transform: uppercase; }
+        .metric-card .val { font-size: 1.1rem; font-weight: 600; color: var(--accent); margin-top: 0.1rem; }
+
+        .log-box {
+            background: #090d16;
+            border: 1px solid var(--panel-border);
+            border-radius: 0.5rem;
+            padding: 0.5rem;
+            font-family: monospace;
+            font-size: 0.7rem;
+            height: 100px;
+            overflow-y: auto;
+            color: #34d399;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1><span>📱</span> PhoneBuilder Pro</h1>
+        <div class="header-nav">
+            <div class="nav-tab active" onclick="switchTab('builder')" id="tab-builder">Phone Builder</div>
+            <div class="nav-tab" onclick="switchTab('pcb')" id="tab-pcb">Custom PCB Lab</div>
+        </div>
+        <div id="status-badge" class="badge warn">Incomplete Build</div>
+    </header>
+
+    <!-- Phone Builder View -->
+    <div class="app-layout" id="view-builder">
+        <div class="panel">
+            <h2>Parts Inventory</h2>
+            <div class="parts-list" id="inventory">
+                <div class="part-card" draggable="true" data-type="motherboard" data-name="Motherboard" data-w="260" data-h="90" data-power="0.2">
+                    <span class="title">System Motherboard</span>
+                    <span class="meta"><span>PCB</span><span>2 Screws</span></span>
+                </div>
+                <div class="part-card" draggable="true" data-type="cpu" data-name="Octa-Core SoC" data-w="60" data-h="50" data-power="1.5">
+                    <span class="title">Octa-Core SoC</span>
+                    <span class="meta"><span>Processor</span><span>1 Screw</span></span>
+                </div>
+                <div class="part-card" draggable="true" data-type="battery" data-name="Li-Ion Battery" data-w="240" data-h="140" data-power="0.1">
+                    <span class="title">Li-Ion Battery (4500mAh)</span>
+                    <span class="meta"><span>Power Cell</span><span>2 Screws</span></span>
+                </div>
+                <div class="part-card" draggable="true" data-type="screen" data-name="OLED Display" data-w="280" data-h="150" data-power="0.8">
+                    <span class="title">OLED Screen Panel</span>
+                    <span class="meta"><span>Display</span><span>4 Screws</span></span>
+                </div>
+                <div class="part-card" draggable="true" data-type="vaporchamber" data-name="Vapor Chamber" data-w="100" data-h="50" data-power="0.0">
+                    <span class="title">Copper Vapor Chamber</span>
+                    <span class="meta"><span>Cooling</span><span>1 Screw</span></span>
+                </div>
+                <!-- Dynamically injected custom PCBs will appear here -->
+                <div id="custom-pcb-slot"></div>
+            </div>
+            <hr style="border-color: var(--panel-border);">
+            <h2>Inspector</h2>
+            <div class="inspector-box" id="inspector">
+                <label>Select a placed part to resize or move.</label>
+            </div>
+        </div>
+
+        <div class="workspace">
+            <div class="toolbar">
+                <button id="tool-screw" class="tool-btn" onclick="toggleScrewdriver()">Screwdriver 🪛 (Off)</button>
+                <button id="btn-boot" onclick="bootOS()" disabled>Boot OS</button>
+                <button class="secondary" onclick="resetPhone()">Clear Chassis</button>
+            </div>
+
+            <div class="phone-chassis">
+                <div class="phone-board" id="board">
+                    <div class="os-screen" id="os-screen">
+                        <div class="os-header">
+                            <span id="os-time">14:02</span>
+                            <span>5G 🔋 98%</span>
+                        </div>
+                        <div class="os-grid">
+                            <div class="app-icon" onclick="openApp('cpu')"><span>⚙️</span><span>CPU Stress</span></div>
+                            <div class="app-icon" onclick="openApp('thermal')"><span>🌡️</span><span>Thermal Lab</span></div>
+                            <div class="app-icon" onclick="openApp('battery')"><span>⚡</span><span>Battery</span></div>
+                        </div>
+                        <button class="secondary" style="margin-top: auto; padding: 0.3rem;" onclick="shutdownOS()">Power Off</button>
+                    </div>
+
+                    <div class="os-app-view" id="app-view">
+                        <div class="app-nav">
+                            <strong id="app-title">App</strong>
+                            <button class="secondary" style="padding: 0.15rem 0.4rem; font-size: 0.7rem;" onclick="closeApp()">Back</button>
+                        </div>
+                        <div class="app-body" id="app-body"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>Smoothed Thermal Heatmap</h2>
+            <div class="heatmap-container">
+                <canvas id="thermalCanvas"></canvas>
+            </div>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <label>Peak Temp</label>
+                    <div class="val" id="metric-temp">24.5 °C</div>
+                </div>
+                <div class="metric-card">
+                    <label>Power Draw</label>
+                    <div class="val" id="metric-power">0.0 W</div>
+                </div>
+            </div>
+            <h2>System Logs</h2>
+            <div class="log-box" id="log-box">
+                [System initialized. Drag parts into chassis, resize, and screw in!]
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom PCB Creator Lab View -->
+    <div class="app-layout" id="view-pcb" style="display: none;">
+        <div class="panel" style="grid-column: 1 / -1; max-width: 900px; margin: 0 auto; width: 100%;">
+            <h2>Custom Sub-PCB Designer</h2>
+            <p style="font-size: 0.8rem; color: var(--muted);">Click on the green PCB canvas to route copper traces and design your own custom sub-board.</p>
+            
+            <div class="toolbar" style="justify-content: flex-start;">
+                <button onclick="clearPCB()">Clear Board</button>
+                <button onclick="saveCustomPCB()">Save Custom PCB to Inventory</button>
+            </div>
+
+            <div class="pcb-canvas-container" id="pcb-canvas" onclick="placeTrace(event)">
+                <!-- Traces rendered here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let placedParts = [];
+        let selectedPartId = null;
+        let screwdriverActive = false;
+        let isBooted = false;
+        let activeApp = null;
+        let shortCircuit = false;
+        let cpuStress = false;
+
+        let customPCBs = [];
+        let currentTraces = [];
+
+        function switchTab(tab) {
+            document.getElementById('tab-builder').className = `nav-tab ${tab === 'builder' ? 'active' : ''}`;
+            document.getElementById('tab-pcb').className = `nav-tab ${tab === 'pcb' ? 'active' : ''}`;
+            document.getElementById('view-builder').style.display = tab === 'builder' ? 'grid' : 'none';
+            document.getElementById('view-pcb').style.display = tab === 'pcb' ? 'grid' : 'none';
+        }
+
+        function toggleScrewdriver() {
+            screwdriverActive = !screwdriverActive;
+            const btn = document.getElementById('tool-screw');
+            btn.className = `tool-btn ${screwdriverActive ? 'active' : ''}`;
+            btn.innerText = `Screwdriver 🪛 (${screwdriverActive ? 'Active' : 'Off'})`;
+        }
+
+        // PCB Creator logic
+        function placeTrace(e) {
+            const rect = document.getElementById('pcb-canvas').getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            currentTraces.push({ x, y });
+            renderPCBTraces();
+        }
+
+        function renderPCBTraces() {
+            const container = document.getElementById('pcb-canvas');
+            container.innerHTML = '';
+            currentTraces.forEach((t, i) => {
+                const dot = document.createElement('div');
+                dot.style.position = 'absolute';
+                dot.style.left = (t.x - 4) + 'px';
+                dot.style.top = (t.y - 4) + 'px';
+                dot.style.width = '8px';
+                dot.style.height = '8px';
+                dot.style.background = '#fbbf24';
+                dot.style.borderRadius = '50%';
+                container.appendChild(dot);
+
+                if (i > 0) {
+                    const prev = currentTraces[i - 1];
+                    const line = document.createElement('div');
+                    line.className = 'pcb-trace';
+                    const length = Math.hypot(t.x - prev.x, t.y - prev.y);
+                    const angle = Math.atan2(t.y - prev.y, t.x - prev.x) * 180 / Math.PI;
+                    line.style.width = length + 'px';
+                    line.style.left = prev.x + 'px';
+                    line.style.top = prev.y + 'px';
+                    line.style.transform = `rotate(${angle}deg)`;
+                    container.appendChild(line);
+                }
+            });
+        }
+
+        function clearPCB() {
+            currentTraces = [];
+            renderPCBTraces();
+        }
+
+        function saveCustomPCB() {
+            if (currentTraces.length < 2) {
+                alert('Route at least a basic circuit trace before saving!');
+                return;
+            }
+            const pcbName = `Custom Sub-PCB #${customPCBs.length + 1}`;
+            customPCBs.push({ name: pcbName, traces: [...currentTraces] });
+            
+            const slot = document.getElementById('custom-pcb-slot');
+            slot.innerHTML += `
+                <div class="part-card" draggable="true" data-type="custompcb" data-name="${pcbName}" data-w="180" data-h="70" data-power="0.3">
+                    <span class="title">${pcbName}</span>
+                    <span class="meta"><span>Custom PCB</span><span>1 Screw</span></span>
+                </div>
+            `;
+            alert('Custom PCB saved to inventory!');
+            switchTab('builder');
+            initInventoryDrag();
+        }
+
+        // Drag & Drop Handling
+        function initInventoryDrag() {
+            document.querySelectorAll('.part-card').forEach(item => {
+                item.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('application/json', JSON.stringify({
+                        type: item.dataset.type,
+                        name: item.dataset.name,
+                        w: parseInt(item.dataset.w),
+                        h: parseInt(item.dataset.h),
+                        power: parseFloat(item.dataset.power)
+                    }));
+                });
+            });
+        }
+        initInventoryDrag();
+
+        const board = document.getElementById('board');
+        board.addEventListener('dragover', (e) => { e.preventDefault(); board.classList.add('drag-over'); });
+        board.addEventListener('dragleave', () => { board.classList.remove('drag-over'); });
+        board.addEventListener('drop', (e) => {
+            e.preventDefault();
+            board.classList.remove('drag-over');
+            const dataStr = e.dataTransfer.getData('application/json');
+            if (!dataStr) return;
+            const partData = JSON.parse(dataStr);
+
+            const rect = board.getBoundingClientRect();
+            let x = e.clientX - rect.left - (partData.w / 2);
+            let y = e.clientY - rect.top - (partData.h / 2);
+
+            x = Math.max(0, Math.min(x, board.clientWidth - partData.w));
+            y = Math.max(0, Math.min(y, board.clientHeight - partData.h));
+
+            const newPart = {
+                id: 'part_' + Date.now() + Math.floor(Math.random()*1000),
+                type: partData.type,
+                name: partData.name,
+                x: x,
+                y: y,
+                w: partData.w,
+                h: partData.h,
+                basePower: partData.power,
+                screws: [{ x: partData.w/2, y: partData.h/2, screwed: false }]
+            };
+
+            placedParts.push(newPart);
+            renderBoard();
+            evaluateCircuit();
+        });
+
+        function renderBoard() {
+            const existing = board.querySelectorAll('.placed-part');
+            existing.forEach(el => el.remove());
+
+            placedParts.forEach(part => {
+                const el = document.createElement('div');
+                el.className = `placed-part type-${part.type} ${selectedPartId === part.id ? 'selected' : ''}`;
+                el.style.left = part.x + 'px';
+                el.style.top = part.y + 'px';
+                el.style.width = part.w + 'px';
+                el.style.height = part.h + 'px';
+                el.innerHTML = `
+                    <span>${part.name}</span>
+                    <button class="delete-btn" onclick="removePart('${part.id}', event)">×</button>
+                `;
+
+                part.screws.forEach((s) => {
+                    const screwEl = document.createElement('div');
+                    screwEl.className = `screw-point ${s.screwed ? 'screwed' : 'unscrewed'}`;
+                    screwEl.style.left = s.x + 'px';
+                    screwEl.style.top = s.y + 'px';
+                    screwEl.onclick = (e) => {
+                        e.stopPropagation();
+                        if (!screwdriverActive) { alert('Activate Screwdriver 🪛 first!'); return; }
+                        s.screwed = !s.screwed;
+                        renderBoard();
+                        evaluateCircuit();
+                    };
+                    el.appendChild(screwEl);
+                });
+
+                el.onclick = (e) => { e.stopPropagation(); selectPart(part.id); };
+
+                let isDragging = false;
+                let startX, startY;
+                el.onmousedown = (e) => {
+                    if(e.target.classList.contains('delete-btn') || e.target.classList.contains('screw-point')) return;
+                    isDragging = true;
+                    startX = e.clientX - part.x;
+                    startY = e.clientY - part.y;
+                    selectPart(part.id);
+                    e.stopPropagation();
+                };
+                window.onmousemove = (e) => {
+                    if (!isDragging) return;
+                    part.x = Math.max(0, Math.min(e.clientX - board.getBoundingClientRect().left - startX, board.clientWidth - part.w));
+                    part.y = Math.max(0, Math.min(e.clientY - board.getBoundingClientRect().top - startY, board.clientHeight - part.h));
+                    el.style.left = part.x + 'px';
+                    el.style.top = part.y + 'px';
+                };
+                window.onmouseup = () => { isDragging = false; };
+
+                board.appendChild(el);
+            });
+        }
+
+        function selectPart(id) {
+            selectedPartId = id;
+            renderBoard();
+            renderInspector();
+        }
+
+        function renderInspector() {
+            const inspector = document.getElementById('inspector');
+            const part = placedParts.find(p => p.id === selectedPartId);
+            if (!part) {
+                inspector.innerHTML = `<label>Select a placed part to resize or move.</label>`;
+                return;
+            }
+            inspector.innerHTML = `
+                <strong>Editing: ${part.name}</strong>
+                <div><label>Width (px)</label><input type="number" value="${part.w}" onchange="updatePartSize('${part.id}', 'w', parseInt(this.value))"></div>
+                <div><label>Height (px)</label><input type="number" value="${part.h}" onchange="updatePartSize('${part.id}', 'h', parseInt(this.value))"></div>
+            `;
+        }
+
+        function updatePartSize(id, prop, val) {
+            const part = placedParts.find(p => p.id === id);
+            if (part && val > 30) {
+                part[prop] = val;
+                part.screws[0].x = part.w / 2;
+                part.screws[0].y = part.h / 2;
+                renderBoard();
+            }
+        }
+
+        function removePart(id, e) {
+            e.stopPropagation();
+            placedParts = placedParts.filter(p => p.id !== id);
+            if (selectedPartId === id) selectedPartId = null;
+            renderBoard();
+            evaluateCircuit();
+            renderInspector();
+        }
+
+        function evaluateCircuit() {
+            const badge = document.getElementById('status-badge');
+            const bootBtn = document.getElementById('btn-boot');
+            const hasMother = placedParts.some(p => p.type === 'motherboard' || p.type === 'custompcb');
+            const hasBattery = placedParts.some(p => p.type === 'battery');
+            const hasCpu = placedParts.some(p => p.type === 'cpu');
+            const hasScreen = placedParts.some(p => p.type === 'screen');
+
+            let allScrewed = placedParts.length > 0 && placedParts.every(p => p.screws.every(s => s.screwed));
+
+            if (hasBattery && !hasMother) {
+                shortCircuit = true;
+                badge.className = 'badge error';
+                badge.innerText = 'CRITICAL: Short Circuit!';
+                bootBtn.disabled = true;
+                return;
+            }
+
+            shortCircuit = false;
+            if (hasMother && hasBattery && hasCpu && hasScreen && allScrewed) {
+                badge.className = 'badge ok';
+                badge.innerText = 'Ready to Boot';
+                bootBtn.disabled = false;
+            } else {
+                badge.className = 'badge warn';
+                badge.innerText = allScrewed ? 'Incomplete Build' : 'Unsecured Screws Pending';
+                bootBtn.disabled = true;
+            }
+        }
+
+        function resetPhone() {
+            placedParts = [];
+            selectedPartId = null;
+            shutdownOS();
+            renderBoard();
+            evaluateCircuit();
+            renderInspector();
+        }
+
+        function bootOS() {
+            if (shortCircuit) return;
+            isBooted = true;
+            document.getElementById('os-screen').style.display = 'flex';
+            document.getElementById('status-badge').className = 'badge ok';
+            document.getElementById('status-badge').innerText = 'Phone OS Active';
+        }
+
+        function shutdownOS() {
+            isBooted = false;
+            document.getElementById('os-screen').style.display = 'none';
+            closeApp();
+            evaluateCircuit();
+        }
+
+        function openApp(appName) {
+            activeApp = appName;
+            const view = document.getElementById('app-view');
+            const title = document.getElementById('app-title');
+            const body = document.getElementById('app-body');
+            view.style.display = 'flex';
+
+            if (appName === 'cpu') {
+                title.innerText = 'CPU Burn Test';
+                body.innerHTML = `
+                    <p>Stress-test SoC processor.</p>
+                    <button onclick="cpuStress = !cpuStress; openApp('cpu');">${cpuStress ? 'Stop Test' : 'Run 100% Load'}</button>
+                    <div style="margin-top:0.5rem; font-weight:600; color:${cpuStress ? 'var(--danger)' : 'var(--muted)'};">
+                        Status: ${cpuStress ? 'MAX LOAD ACTIVE' : 'Idle'}
+                    </div>
+                `;
+            } else if (appName === 'thermal') {
+                title.innerText = 'Thermal Diagnostics';
+                body.innerHTML = `<p>Live thermal sensor grid active.</p>`;
+            } else if (appName === 'battery') {
+                title.innerText = 'Battery Monitor';
+                body.innerHTML = `<p>Cell Health: 100% | Secure Connection</p>`;
+            }
+        }
+
+        function closeApp() {
+            activeApp = null;
+            document.getElementById('app-view').style.display = 'none';
+        }
+
+        // --- Heatmap Engine ---
+        const canvas = document.getElementById('thermalCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        let componentTemps = {};
+
+        function simulateThermalPhysics() {
+            let peakTemp = 24.5;
+            let totalPower = 0.0;
+
+            placedParts.forEach(part => {
+                if (!componentTemps[part.id]) componentTemps[part.id] = 24.5;
+
+                let heatGen = part.basePower;
+                if (part.type === 'cpu' && cpuStress) heatGen *= 4.5;
+                if (shortCircuit) heatGen = 8.0;
+
+                let targetTemp = 24.5 + (heatGen * 18);
+                if (targetTemp < 24.5) targetTemp = 24.5;
+
+                componentTemps[part.id] += (targetTemp - componentTemps[part.id]) * 0.08;
+                totalPower += heatGen;
+                if (componentTemps[part.id] > peakTemp) peakTemp = componentTemps[part.id];
+            });
+
+            document.getElementById('metric-temp').innerText = peakTemp.toFixed(1) + ' °C';
+            document.getElementById('metric-power').innerText = totalPower.toFixed(2) + ' W';
+        }
+
+        function drawHeatmap() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#0a0f1d';
+            ctx.fillRect(canvas.width/2 - 80, 10, 160, 260);
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(canvas.width/2 - 80, 10, 160, 260);
+
+            placedParts.forEach(part => {
+                const temp = componentTemps[part.id] || 24.5;
+                const cx = canvas.width/2 + (part.x + part.w/2 - 150);
+                const cy = 10 + (part.y + part.h/2) * (260 / 564);
+                const radius = Math.max(part.w, part.h) * 0.7 + (temp * 0.4);
+
+                const grad = ctx.createRadialGradient(cx, cy, 2, cx, cy, radius);
+                let alpha = Math.min(0.95, (temp - 24) / 50);
+                if (shortCircuit) alpha = 0.9;
+
+                grad.addColorStop(0, `rgba(239, 68, 68, ${alpha})`);
+                grad.addColorStop(0.4, `rgba(245, 158, 11, ${alpha * 0.8})`);
+                grad.addColorStop(0.8, `rgba(56, 189, 248, ${alpha * 0.3})`);
+                grad.addColorStop(1, 'rgba(0,0,0,0)');
+
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            if (shortCircuit) {
+                ctx.strokeStyle = '#ef4444';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                let sx = canvas.width/2;
+                let sy = 140;
+                ctx.moveTo(sx, sy);
+                for(let i=0; i<6; i++) {
+                    sx += (Math.random() - 0.5) * 40;
+                    sy += (Math.random() - 0.5) * 40;
+                    ctx.lineTo(sx, sy);
+                }
+                ctx.stroke();
+            }
+        }
+
+        function loop() {
+            simulateThermalPhysics();
+            drawHeatmap();
+            requestAnimationFrame(loop);
+        }
+
+        requestAnimationFrame(loop);
+    </script>
+</body>
+</html>
